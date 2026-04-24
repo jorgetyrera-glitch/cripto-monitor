@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime
+import pytz
 from urllib.parse import quote
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
@@ -34,7 +35,8 @@ def enviar_whatsapp(mensaje):
     print("✅ WhatsApp enviado" if r.status_code == 200 else f"❌ Error: {r.status_code}")
 
 def main():
-    ahora = datetime.now().strftime("%d/%m/%Y %H:%M")
+    chile = pytz.timezone("America/Santiago")
+    ahora = datetime.now(chile).strftime("%d/%m/%Y %H:%M")
     lineas = [f"🪙 *Reporte Cripto Buda.com*", f"📅 {ahora}", "─────────────────────"]
 
     for mercado in MERCADOS:
