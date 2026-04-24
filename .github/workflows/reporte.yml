@@ -1,0 +1,27 @@
+name: Reporte Diario Cripto
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  enviar-reporte:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v3
+
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install requests
+
+      - name: Ejecutar reporte
+        env:
+          TELEFONO:   ${{ secrets.TELEFONO }}
+          APIKEY_BOT: ${{ secrets.APIKEY_BOT }}
+        run: python reporte_buda.py
