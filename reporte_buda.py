@@ -4,8 +4,8 @@ from urllib.parse import quote
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────
 import os
-TELEFONO   = os.environ["+56944394340"]       # Se leerá desde variables secretas
-APIKEY_BOT = os.environ["7747963"]
+TELEFONO   = os.environ["TELEFONO"]       # Se leerá desde variables secretas
+APIKEY_BOT = os.environ["APIKEY_BOT"]
 MERCADOS   = ["BTC-CLP", "ETH-CLP", "LTC-CLP", "USDC-CLP"]
 # ─────────────────────────────────────────────────────────
 
