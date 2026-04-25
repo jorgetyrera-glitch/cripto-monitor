@@ -107,9 +107,9 @@ def construir_mensaje():
     chile = pytz.timezone("America/Santiago")
     ahora = datetime.now(chile).strftime("%d/%m/%Y %H:%M")
     lineas = [
-        "Reporte Cripto Buda.com",
+        f"Reporte Cripto Buda.com",
         f"Fecha: {ahora}",
-        "─────────────────────",
+        "─────────────────",
     ]
 
     for mercado in MERCADOS:
@@ -117,51 +117,51 @@ def construir_mensaje():
             t    = obtener_ticker(mercado)
             base = mercado.split("-")[0]
             signo_24h = "+" if t["variacion_24h"] >= 0 else ""
-            lineas += [
-                f"\n{base}",
-                f"  Precio : ${t['precio']:>15,.0f} CLP",
-                f"  Compra : ${t['bid']:>15,.0f}",
-                f"  Venta  : ${t['ask']:>15,.0f}",
-                f"  24h    : {signo_24h}{t['variacion_24h']:.2f}%",
-            ]
 
-            # ── CAMBIO: usar obtener_ultima_compra en vez de obtener_compras ──
             precio_compra, fecha_compra = obtener_ultima_compra(mercado)
 
             if precio_compra:
                 diff_pct = (t["precio"] - precio_compra) * 100 / precio_compra
-                diff_clp = t["precio"] - precio_compra
                 signo    = "+" if diff_pct >= 0 else ""
 
                 if diff_pct >= 5:
-                    decision = "VENDER - ganancia significativa"
+                    decision = "VENDER"
                 elif diff_pct >= 0:
-                    decision = "Mantener - leve ganancia"
+                    decision = "Mantener (ganancia)"
                 elif diff_pct >= -5:
-                    decision = "Mantener - leve perdida"
+                    decision = "Mantener (leve perdida)"
                 else:
-                    decision = "Mantener - esperar recuperacion"
+                    decision = "Mantener (esperar)"
 
                 lineas += [
-                    f"  -----------------",
-                    f"  Ultima compra ({fecha_compra}):",
-                    f"  Precio compra : ${precio_compra:>12,.0f}",
-                    f"  Diferencia    : {signo}{diff_pct:.2f}% (${diff_clp:>+,.0f})",
+                    f"\n{base}: ${t['precio']:,.0f}",
+                    f"  24h: {signo_24h}{t['variacion_24h']:.2f}%",
+                    f"  Compra {fecha_compra}: ${precio_compra:,.0f}",
+                    f"  Variacion: {signo}{diff_pct:.2f}%",
                     f"  {decision}",
                 ]
             else:
-                lineas.append("  Sin compras ejecutadas")
+                lineas += [
+                    f"\n{base}: ${t['precio']:,.0f}",
+                    f"  24h: {signo_24h}{t['variacion_24h']:.2f}%",
+                    f"  Sin compras ejecutadas",
+                ]
 
         except Exception as e:
             lineas.append(f"\nError {mercado}: {e}")
 
-    lineas += ["\n─────────────────────", "Reporte automatico Buda.com"]
+    lineas += ["\n─────────────────", "Buda.com"]
     return "\n".join(lineas)
 
 def enviar_whatsapp(mensaje):
-    url = f"https://api.callmebot.com/whatsapp.php?phone={TELEFONO}&text={quote(mensaje)}&apikey={APIKEY_BOT}"
-    r = requests.get(url, timeout=15)
-    print("WhatsApp enviado OK" if r.status_code == 200 else f"Error WhatsApp: {r.status_code}", flush=True)
+    url = "https://api.callmebot.com/whatsapp.php"
+    params = {
+        "phone":  TELEFONO,
+        "text":   mensaje,
+        "apikey": APIKEY_BOT,
+    }
+    r = requests.get(url, params=params, timeout=15)
+    print("WhatsApp enviado OK" if r.status_code == 200 else f"Error: {r.status_code}", flush=True)
 
 def main():
     mensaje = construir_mensaje()
