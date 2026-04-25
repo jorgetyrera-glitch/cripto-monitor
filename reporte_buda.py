@@ -64,5 +64,3 @@ def obtener_compras(mercado):
 
     return compras
 
-if __name__ == "__main__":
-    main()
