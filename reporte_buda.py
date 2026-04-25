@@ -22,34 +22,47 @@ def firma_buda(secret, method, path, nonce, body=""):
         hashlib.sha384
     ).hexdigest()
 
-def obtener_ultima_compra(mercado):
-    nonce  = str(int(time.time() * 1000))
-path   = f"/markets/{mercado}/orders"
-method = "GET"
+def obtener_compras(mercado):
+    compras = []
+    page = 1
 
-firma  = firma_buda(BUDA_API_SECRET, method, path, nonce)
+    while True:
+        nonce = str(int(time.time() * 1000))
+        path = f"/markets/{mercado}/trades?page={page}"
+        method = "GET"
 
-    headers = {
-    "X-SBTC-APIKEY": BUDA_API_KEY,
-    "X-SBTC-NONCE": nonce,
-    "X-SBTC-SIGNATURE": firma,
-}
+        firma = firma_buda(BUDA_API_SECRET, method, path, nonce)
 
-    url    = f"{BASE_URL}/markets/{mercado}/orders"
-    params = {"state": "traded", "order_type": "bid", "per": 5}
-    r      = requests.get(url, headers=headers, params=params, timeout=10)
+        headers = {
+            "X-SBTC-APIKEY": BUDA_API_KEY,
+            "X-SBTC-NONCE": nonce,
+            "X-SBTC-SIGNATURE": firma,
+        }
 
-    print(f"\n--- {mercado} ---")
-    print(f"Status: {r.status_code}")
-    print(f"Respuesta: {r.text[:500]}")
-    return r.json()
+        url = BASE_URL + path
+        r = requests.get(url, headers=headers, timeout=10)
 
-def main():
-    for mercado in MERCADOS:
-        try:
-            obtener_ultima_compra(mercado)
-        except Exception as e:
-            print(f"Error {mercado}: {e}")
+        if r.status_code != 200:
+            print(f"Error trades {mercado}: {r.text}")
+            break
+
+        data = r.json()
+        trades = data.get("trades", [])
+
+        if not trades:
+            break
+
+        for t in trades:
+            # 🔑 esto detecta tus compras reales
+            if t.get("maker_side", "").lower() == "sell":
+                compras.append(t)
+
+        if len(trades) < 20:
+            break
+
+        page += 1
+
+    return compras
 
 if __name__ == "__main__":
     main()
