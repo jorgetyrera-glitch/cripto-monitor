@@ -2,7 +2,10 @@ name: Reporte Diario Cripto
 
 on:
   schedule:
-    - cron: '0 13 * * *'
+    - cron: '0 13 * * *'   # 09:00 Chile
+    - cron: '0 17 * * *'   # 13:00 Chile
+    - cron: '0 21 * * *'   # 17:00 Chile
+    - cron: '0 1  * * *'   # 21:00 Chile
   workflow_dispatch:
 
 jobs:
