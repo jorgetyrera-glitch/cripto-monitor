@@ -2,13 +2,12 @@ name: Reporte Diario Cripto
 
 on:
   schedule:
-    - cron: '0 13 * * *'  # Ajustado a horario Chile
+    - cron: '0 13 * * *'
   workflow_dispatch:
 
 jobs:
   enviar-reporte:
     runs-on: ubuntu-latest
-
     steps:
       - name: Descargar código
         uses: actions/checkout@v3
@@ -19,7 +18,7 @@ jobs:
           python-version: '3.11'
 
       - name: Instalar dependencias
-        run: pip install requests pytz ccxt
+        run: pip install requests pytz
 
       - name: Ejecutar reporte
         env:
