@@ -48,7 +48,7 @@ def obtener_ticker(mercado):
 
 def obtener_compras(mercado):
     nonce  = str(int(time.time() * 1000))
-    params_str = f"market_id={mercado}&state=traded&per=5&page=1"
+    params_str = f"market_id={mercado}&state=traded&per=50&page=1"
     path_con_params = f"/api/v2/orders?{params_str}"
     msg   = f"GET {path_con_params} {nonce}"
     firma = hmac.new(
@@ -64,40 +64,44 @@ def obtener_compras(mercado):
     r = requests.get("https://www.buda.com/api/v2/orders", headers=headers, params={
         "market_id": mercado,
         "state":     "traded",
-        "per":       5,
+        "per":       50,
         "page":      1
     }, timeout=10)
 
     data    = r.json()
     ordenes = data.get("orders", [])
 
-    # Imprimir la primera orden completa para ver todos los campos
-    if ordenes:
-        print(f"[DEBUG] Primera orden {mercado}:", flush=True)
-        primera = ordenes[0]
-        for clave, valor in primera.items():
-            print(f"  {clave}: {valor}", flush=True)
-
     compras = []
     for o in ordenes:
         try:
-            tipo = str(o.get("type", "")).strip()
-            # Intentar distintos nombres de campo para precio
-            precio = None
-            for campo in ["price", "limit", "avg_price", "price_limit", "original_amount"]:
-                val = o.get(campo)
-                if val and isinstance(val, list) and val[0]:
-                    try:
-                        precio = float(val[0])
-                        if precio > 0:
-                            break
-                    except:
-                        pass
-            monto = float(o["traded_amount"][0]) if o.get("traded_amount") and o["traded_amount"][0] else None
-            if tipo == "Bid" and precio and monto and monto > 0:
-                compras.append({"precio": precio, "monto": monto})
+            tipo      = str(o.get("type", "")).strip()
+            mkt       = str(o.get("market_id", "")).strip()
+
+            # Verificar que sea compra (Bid) y del mercado correcto
+            if tipo != "Bid" or mkt != mercado:
+                continue
+
+            # Precio real = CLP pagado / cantidad comprada
+            total_clp = o.get("total_exchanged")
+            cantidad  = o.get("traded_amount")
+
+            if not total_clp or not cantidad:
+                continue
+
+            clp  = float(total_clp[0])
+            btc  = float(cantidad[0])
+
+            if btc <= 0 or clp <= 0:
+                continue
+
+            precio_real = clp / btc
+            print(f"  {mkt} compra: {btc:.8f} a ${precio_real:,.0f} CLP", flush=True)
+            compras.append({"precio": precio_real, "monto": btc})
+
         except Exception as e:
             print(f"  error: {e}", flush=True)
+
+    print(f"[DEBUG] {mercado}: {len(compras)} compras Bid encontradas", flush=True)
     return compras
     
 def precio_promedio(compras):
