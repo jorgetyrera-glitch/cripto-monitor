@@ -25,6 +25,7 @@ def generar_firma(method, path, nonce):
 
 def request_privado(path, params=None):
     nonce  = str(int(time.time() * 1000))
+    # La firma usa solo el path, sin query params
     firma  = generar_firma("GET", path, nonce)
     headers = {
         "X-SBTC-APIKEY":    BUDA_API_KEY,
@@ -34,7 +35,7 @@ def request_privado(path, params=None):
     r = requests.get(BASE_URL + path, headers=headers, params=params, timeout=10)
     print(f"[DEBUG] {path} -> {r.status_code}", flush=True)
     return r.json()
-
+    
 def obtener_ticker(mercado):
     r = requests.get(f"{BASE_URL}/markets/{mercado}/ticker", timeout=10)
     t = r.json()["ticker"]
@@ -46,7 +47,6 @@ def obtener_ticker(mercado):
     }
 
 def obtener_compras(mercado):
-    # Endpoint correcto: /api/v2/orders (sin market en la URL)
     path = "/api/v2/orders"
     data = request_privado(path, params={
         "market_id": mercado,
@@ -54,6 +54,7 @@ def obtener_compras(mercado):
         "per":       50,
         "page":      1
     })
+    print(f"[DEBUG] respuesta: {str(data)[:300]}", flush=True)
     ordenes = data.get("orders", [])
     print(f"[DEBUG] {mercado}: {len(ordenes)} ordenes", flush=True)
 
@@ -68,7 +69,7 @@ def obtener_compras(mercado):
             if "bid" in tipo and precio and monto and monto > 0:
                 compras.append({"precio": precio, "monto": monto})
         except Exception as e:
-            print(f"  error orden: {e}", flush=True)
+            print(f"  error: {e}", flush=True)
     return compras
 
 def precio_promedio(compras):
