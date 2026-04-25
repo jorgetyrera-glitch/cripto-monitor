@@ -47,29 +47,45 @@ def obtener_ticker(mercado):
     }
 
 def obtener_compras(mercado):
-    path = "/api/v2/orders"
-    data = request_privado(path, params={
+    # Intentar con query params incluidos en la firma
+    nonce  = str(int(time.time() * 1000))
+    params_str = f"market_id={mercado}&state=traded&per=50&page=1"
+    path_con_params = f"/api/v2/orders?{params_str}"
+    
+    # Firma con path completo incluyendo query params
+    msg   = f"GET {path_con_params} {nonce}"
+    firma = hmac.new(
+        BUDA_API_SECRET.encode("utf-8"),
+        msg.encode("utf-8"),
+        hashlib.sha384
+    ).hexdigest()
+    headers = {
+        "X-SBTC-APIKEY":    BUDA_API_KEY,
+        "X-SBTC-NONCE":     nonce,
+        "X-SBTC-SIGNATURE": firma,
+    }
+    url = f"https://www.buda.com/api/v2/orders"
+    r   = requests.get(url, headers=headers, params={
         "market_id": mercado,
         "state":     "traded",
         "per":       50,
         "page":      1
-    })
-    print(f"[DEBUG] respuesta: {str(data)[:300]}", flush=True)
+    }, timeout=10)
+    
+    print(f"[DEBUG] orders {mercado} -> {r.status_code} | {r.text[:200]}", flush=True)
+    data    = r.json()
     ordenes = data.get("orders", [])
-    print(f"[DEBUG] {mercado}: {len(ordenes)} ordenes", flush=True)
-
+    
     compras = []
     for o in ordenes:
         try:
-            tipo   = str(o.get("order_type", "")).lower()
-            estado = str(o.get("state", "")).lower()
+            tipo  = str(o.get("order_type", "")).lower()
             precio = float(o["price"][0]) if o.get("price") and o["price"][0] else None
             monto  = float(o["traded_amount"][0]) if o.get("traded_amount") and o["traded_amount"][0] else None
-            print(f"  tipo={tipo} estado={estado} precio={precio} monto={monto}", flush=True)
             if "bid" in tipo and precio and monto and monto > 0:
                 compras.append({"precio": precio, "monto": monto})
-        except Exception as e:
-            print(f"  error: {e}", flush=True)
+        except:
+            continue
     return compras
 
 def precio_promedio(compras):
