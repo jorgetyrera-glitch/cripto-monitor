@@ -52,43 +52,40 @@ def obtener_ticker(mercado):
 
 # ─── ÓRDENES (TUS COMPRAS) ────────────────────────────────
 def obtener_compras(mercado):
-    path = f"/markets/{mercado}/orders"
-    url = BASE_URL + path
+    compras = []
+    page = 1
 
-    headers = buda_headers("GET", path)
-    r = requests.get(url, headers=headers)
+    while True:
+        path = f"/markets/{mercado}/orders?page={page}"
+        url = BASE_URL + path
 
-    if r.status_code != 200:
-        print(f"Error órdenes {mercado}: {r.text}")
-        return []
+        headers = buda_headers("GET", path)
+        r = requests.get(url, headers=headers)
 
-    orders = r.json().get("orders", [])
+        if r.status_code != 200:
+            print(f"Error órdenes {mercado}: {r.text}")
+            break
 
-    compras = [
-        o for o in orders
-        if o["type"] == "Bid" and o["state"] == "traded"
-    ]
+        data = r.json()
+        orders = data.get("orders", [])
+
+        if not orders:
+            break
+
+        for o in orders:
+            tipo = o.get("type", "").lower()
+            estado = o.get("state", "").lower()
+
+            if tipo in ["bid", "buy"] and estado in ["traded", "executed", "filled"]:
+                compras.append(o)
+
+        # 🔑 cortar si no hay más páginas
+        if len(orders) < 20:
+            break
+
+        page += 1
 
     return compras
-
-
-def precio_promedio_compras(compras):
-    if not compras:
-        return None, 0
-
-    total = 0
-    cantidad = 0
-
-    for o in compras:
-        price = float(o["price"][0])
-        amount = float(o["amount"][0])
-        total += price * amount
-        cantidad += amount
-
-    if cantidad == 0:
-        return None, 0
-
-    return total / cantidad, len(compras)
 
 
 # ─── MENSAJE ─────────────────────────────────────────────
