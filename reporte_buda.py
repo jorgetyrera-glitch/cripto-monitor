@@ -65,9 +65,19 @@ def main():
         try:
             r = requests.get(f"https://www.buda.com/api/v2/markets/{mercado}/ticker", timeout=10)
             t = r.json()["ticker"]
-            base = mercado.split("-")[0]
+            base   = mercado.split("-")[0]
             precio = float(t["last_price"][0])
             bid    = float(t["max_bid"][0])
             ask    = float(t["min_ask"][0])
             var    = float(t["price_variation_24h"]) * 100
-            emoji  = "📈" if va
+            signo  = "+" if var >= 0 else ""
+            lineas += [
+                f"\n*{base}*",
+                f"  Precio : ${precio:>15,.0f} CLP",
+                f"  Compra : ${bid:>15,.0f}",
+                f"  Venta  : ${ask:>15,.0f}",
+                f"  24h    : {signo}{var:.2f}%",
+                f"  Comparacion pendiente (ajustando autenticacion)",
+            ]
+        except Exception as e:
+            lineas.append(f"\nError {mercado}: {e}")
