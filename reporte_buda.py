@@ -136,9 +136,9 @@ def construir_mensaje():
                 decision = "Mantener (esperar)"
 
             lineas += [
-                f"\n{base}: ${t['precio']:,.0f}",
+                f"\n{base}: CLP {t['precio']:,.0f}",
                 f"  24h: {signo_24h}{t['variacion_24h']:.2f}%",
-                f"  Compra {fecha_compra}: ${precio_compra:,.0f}",
+                f"  Compra {fecha_compra}: CLP {precio_compra:,.0f}",
                 f"  Variacion: {signo}{diff_pct:.2f}%",
                 f"  {decision}",
             ]
