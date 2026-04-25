@@ -47,12 +47,9 @@ def obtener_ticker(mercado):
     }
 
 def obtener_compras(mercado):
-    # Intentar con query params incluidos en la firma
     nonce  = str(int(time.time() * 1000))
     params_str = f"market_id={mercado}&state=traded&per=50&page=1"
     path_con_params = f"/api/v2/orders?{params_str}"
-    
-    # Firma con path completo incluyendo query params
     msg   = f"GET {path_con_params} {nonce}"
     firma = hmac.new(
         BUDA_API_SECRET.encode("utf-8"),
@@ -64,28 +61,30 @@ def obtener_compras(mercado):
         "X-SBTC-NONCE":     nonce,
         "X-SBTC-SIGNATURE": firma,
     }
-    url = f"https://www.buda.com/api/v2/orders"
-    r   = requests.get(url, headers=headers, params={
+    r = requests.get("https://www.buda.com/api/v2/orders", headers=headers, params={
         "market_id": mercado,
         "state":     "traded",
         "per":       50,
         "page":      1
     }, timeout=10)
-    
-    print(f"[DEBUG] orders {mercado} -> {r.status_code} | {r.text[:200]}", flush=True)
+
+    print(f"[DEBUG] orders {mercado} -> {r.status_code}", flush=True)
     data    = r.json()
     ordenes = data.get("orders", [])
-    
+    print(f"[DEBUG] {mercado}: {len(ordenes)} ordenes encontradas", flush=True)
+
     compras = []
     for o in ordenes:
         try:
-            tipo  = str(o.get("order_type", "")).lower()
+            # Campo correcto es "type" con mayúscula "Bid"
+            tipo   = str(o.get("type", "")).strip()
             precio = float(o["price"][0]) if o.get("price") and o["price"][0] else None
             monto  = float(o["traded_amount"][0]) if o.get("traded_amount") and o["traded_amount"][0] else None
-            if "bid" in tipo and precio and monto and monto > 0:
+            print(f"  tipo={tipo} precio={precio} monto={monto}", flush=True)
+            if tipo == "Bid" and precio and monto and monto > 0:
                 compras.append({"precio": precio, "monto": monto})
-        except:
-            continue
+        except Exception as e:
+            print(f"  error: {e}", flush=True)
     return compras
 
 def precio_promedio(compras):
