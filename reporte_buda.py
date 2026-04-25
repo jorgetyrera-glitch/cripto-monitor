@@ -31,16 +31,13 @@ def request_privado(path, params=None):
         "X-SBTC-SIGNATURE": firma,
         "Content-Type":     "application/json",
     }
-    url = BASE_URL + path
-    r   = requests.get(url, headers=headers, params=params, timeout=10)
-    print(f"[DEBUG] {path} → status {r.status_code}")
-    print(f"[DEBUG] respuesta: {r.text[:300]}")
+    r = requests.get(BASE_URL + path, headers=headers, params=params, timeout=10)
+    print(f"[DEBUG] {path} → {r.status_code} | {r.text[:200]}")
     return r.json()
 
 def obtener_ticker(mercado):
-    url = f"{BASE_URL}/markets/{mercado}/ticker"
-    r   = requests.get(url, timeout=10)
-    t   = r.json()["ticker"]
+    r = requests.get(f"{BASE_URL}/markets/{mercado}/ticker", timeout=10)
+    t = r.json()["ticker"]
     return {
         "precio":        float(t["last_price"][0]),
         "bid":           float(t["max_bid"][0]),
@@ -48,28 +45,34 @@ def obtener_ticker(mercado):
         "variacion_24h": float(t["price_variation_24h"]) * 100,
     }
 
-def obtener_compras(mercado):
-    # Probamos el endpoint sin filtro de tipo para ver qué devuelve
-    path = f"/api/v2/markets/{mercado}/orders"
-    data = request_privado(path, params={"per": 50})
+def obtener_compras_por_mercado(mercado):
+    # Endpoint correcto según documentación oficial Buda
+    path = f"/api/v2/markets/{mercado.lower()}/orders"
+    data = request_privado(path, params={"per": 50, "page": 1})
+
+    if "orders" not in data:
+        # Intentar endpoint alternativo
+        path2 = "/api/v2/orders"
+        data = request_privado(path2, params={"market_id": mercado, "per": 50})
+
     ordenes = data.get("orders", [])
-    print(f"[DEBUG] Total órdenes recibidas {mercado}: {len(ordenes)}")
+    print(f"[DEBUG] {mercado}: {len(ordenes)} órdenes encontradas")
 
     compras = []
     for o in ordenes:
-        print(f"[DEBUG] orden → tipo: {o.get('order_type')} | estado: {o.get('state')} | precio: {o.get('price')}")
         try:
-            tipo   = o.get("order_type", "")
-            estado = o.get("state", "")
+            tipo   = str(o.get("order_type", "")).lower()
+            estado = str(o.get("state", "")).lower()
             precio = float(o["price"][0]) if o.get("price") and o["price"][0] else None
             monto  = float(o["traded_amount"][0]) if o.get("traded_amount") and o["traded_amount"][0] else None
-            if "bid" in tipo and "traded" in estado and precio and monto and precio > 0:
+            print(f"[DEBUG]   → tipo:{tipo} estado:{estado} precio:{precio} monto:{monto}")
+            if "bid" in tipo and "traded" in estado and precio and monto > 0:
                 compras.append({"precio": precio, "monto": monto})
-        except:
-            continue
+        except Exception as e:
+            print(f"[DEBUG] error procesando orden: {e}")
     return compras
 
-def precio_promedio_ponderado(compras):
+def precio_promedio(compras):
     if not compras:
         return None
     total_valor = sum(c["precio"] * c["monto"] for c in compras)
@@ -79,18 +82,13 @@ def precio_promedio_ponderado(compras):
 def construir_mensaje():
     chile = pytz.timezone("America/Santiago")
     ahora = datetime.now(chile).strftime("%d/%m/%Y %H:%M")
-    lineas = [
-        f"🪙 *Reporte Cripto Buda.com*",
-        f"📅 {ahora}",
-        "─────────────────────",
-    ]
+    lineas = [f"🪙 *Reporte Cripto Buda.com*", f"📅 {ahora}", "─────────────────────"]
 
     for mercado in MERCADOS:
         try:
             t    = obtener_ticker(mercado)
             base = mercado.split("-")[0]
             emoji_24h = "📈" if t["variacion_24h"] >= 0 else "📉"
-
             lineas += [
                 f"\n*{base}*",
                 f"  Precio : ${t['precio']:>15,.0f} CLP",
@@ -99,18 +97,18 @@ def construir_mensaje():
                 f"  24h    : {emoji_24h} {t['variacion_24h']:+.2f}%",
             ]
 
-            compras       = obtener_compras(mercado)
-            precio_compra = precio_promedio_ponderado(compras)
+            compras = obtener_compras_por_mercado(mercado)
+            prom    = precio_promedio(compras)
 
-            if precio_compra:
-                diff_pct = ((t["precio"] - precio_compra) / precio_compra) * 100
-                diff_clp = t["precio"] - precio_compra
+            if prom:
+                diff_pct = ((t["precio"] - prom) / prom) * 100
+                diff_clp = t["precio"] - prom
                 emoji    = "🟢" if diff_pct >= 0 else "🔴"
                 decision = "💡 Considera VENDER" if diff_pct >= 5 else "⏳ Mantener" if diff_pct >= 0 else "📉 En pérdida"
                 lineas += [
                     f"  ─────────────────",
                     f"  📊 Vs tus {len(compras)} compras:",
-                    f"  Prom compra : ${precio_compra:>12,.0f}",
+                    f"  Prom compra : ${prom:>12,.0f}",
                     f"  Diferencia  : {emoji} {diff_pct:+.2f}% (${diff_clp:>+,.0f})",
                     f"  {decision}",
                 ]
@@ -126,9 +124,7 @@ def construir_mensaje():
 def enviar_whatsapp(mensaje):
     url = (
         f"https://api.callmebot.com/whatsapp.php"
-        f"?phone={TELEFONO}"
-        f"&text={quote(mensaje)}"
-        f"&apikey={APIKEY_BOT}"
+        f"?phone={TELEFONO}&text={quote(mensaje)}&apikey={APIKEY_BOT}"
     )
     r = requests.get(url, timeout=15)
     print("✅ WhatsApp enviado" if r.status_code == 200 else f"❌ Error: {r.status_code}")
