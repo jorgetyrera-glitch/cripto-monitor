@@ -107,46 +107,56 @@ def construir_mensaje():
     chile = pytz.timezone("America/Santiago")
     ahora = datetime.now(chile).strftime("%d/%m/%Y %H:%M")
     lineas = [
-        f"Reporte Cripto Buda.com",
-        f"Fecha: {ahora}",
-        "─────────────────",
+        f"🪙 *REPORTE CRIPTO BUDA.COM*",
+        f"🗓 {ahora}",
+        "━━━━━━━━━━━━━━━━━━━",
     ]
 
     for mercado in MERCADOS:
         try:
             precio_compra, fecha_compra = obtener_ultima_compra(mercado)
 
-            # Si no hay compra ejecutada, omitir esta cripto del reporte
             if not precio_compra:
                 continue
 
             t    = obtener_ticker(mercado)
             base = mercado.split("-")[0]
+
+            emoji_cripto = {
+                "BTC": "₿",
+                "ETH": "Ξ",
+                "LTC": "Ł",
+                "USDC": "◎",
+            }.get(base, "🪙")
+
             signo_24h = "+" if t["variacion_24h"] >= 0 else ""
+            emoji_24h = "📈" if t["variacion_24h"] >= 0 else "📉"
+
             diff_pct  = (t["precio"] - precio_compra) * 100 / precio_compra
             signo     = "+" if diff_pct >= 0 else ""
+            emoji_var = "🟢" if diff_pct >= 0 else "🔴"
 
             if diff_pct >= 5:
-                decision = "VENDER"
+                decision      = "✅ *VENDER* - ganancia significativa"
             elif diff_pct >= 0:
-                decision = "Mantener (ganancia)"
+                decision      = "🔵 Mantener - leve ganancia"
             elif diff_pct >= -5:
-                decision = "Mantener (leve perdida)"
+                decision      = "🟡 Mantener - leve perdida"
             else:
-                decision = "Mantener (esperar)"
+                decision      = "⚠️ Mantener - esperar recuperacion"
 
             lineas += [
-                f"\n{base}: CLP {t['precio']:,.0f}",
-                f"  24h: {signo_24h}{t['variacion_24h']:.2f}%",
-                f"  Compra {fecha_compra}: CLP {precio_compra:,.0f}",
-                f"  Variacion: {signo}{diff_pct:.2f}%",
+                f"\n{emoji_cripto} *{base}*: CLP {t['precio']:,.0f}",
+                f"  {emoji_24h} 24h: {signo_24h}{t['variacion_24h']:.2f}%",
+                f"  🛒 Compra {fecha_compra}: CLP {precio_compra:,.0f}",
+                f"  {emoji_var} Variacion: {signo}{diff_pct:.2f}%",
                 f"  {decision}",
             ]
 
         except Exception as e:
-            lineas.append(f"\nError {mercado}: {e}")
+            lineas.append(f"\n❌ Error {mercado}: {e}")
 
-    lineas += ["\n─────────────────", "Buda.com"]
+    lineas += ["\n━━━━━━━━━━━━━━━━━━━", "📊 Buda.com"]
     return "\n".join(lineas)
 
 def enviar_whatsapp(mensaje):
