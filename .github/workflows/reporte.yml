@@ -22,6 +22,8 @@ jobs:
 
       - name: Ejecutar reporte
         env:
-          TELEFONO:   ${{ secrets.TELEFONO }}
-          APIKEY_BOT: ${{ secrets.APIKEY_BOT }}
+          TELEFONO:        ${{ secrets.TELEFONO }}
+          APIKEY_BOT:      ${{ secrets.APIKEY_BOT }}
+          BUDA_API_KEY:    ${{ secrets.BUDA_API_KEY }}
+          BUDA_API_SECRET: ${{ secrets.BUDA_API_SECRET }}
         run: python reporte_buda.py
