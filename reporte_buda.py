@@ -46,7 +46,7 @@ def obtener_ticker(mercado):
         "variacion_24h": float(t["price_variation_24h"]) * 100,
     }
 
-def obtener_compras(mercado):
+def obtener_ultima_compra(mercado):
     nonce  = str(int(time.time() * 1000))
     params_str = f"market_id={mercado}&state=traded&per=50&page=1"
     path_con_params = f"/api/v2/orders?{params_str}"
@@ -71,38 +71,30 @@ def obtener_compras(mercado):
     data    = r.json()
     ordenes = data.get("orders", [])
 
-    compras = []
+    # Buscar la compra (Bid) más reciente del mercado correcto
     for o in ordenes:
+        tipo = str(o.get("type", "")).strip()
+        mkt  = str(o.get("market_id", "")).strip()
+        if tipo != "Bid" or mkt != mercado:
+            continue
         try:
-            tipo      = str(o.get("type", "")).strip()
-            mkt       = str(o.get("market_id", "")).strip()
-
-            # Verificar que sea compra (Bid) y del mercado correcto
-            if tipo != "Bid" or mkt != mercado:
-                continue
-
-            # Precio real = CLP pagado / cantidad comprada
             total_clp = o.get("total_exchanged")
             cantidad  = o.get("traded_amount")
-
+            fecha     = o.get("created_at", "")[:10]
             if not total_clp or not cantidad:
                 continue
-
             clp  = float(total_clp[0])
             btc  = float(cantidad[0])
-
             if btc <= 0 or clp <= 0:
                 continue
-
-            precio_real = clp / btc
-            print(f"  {mkt} compra: {btc:.8f} a ${precio_real:,.0f} CLP", flush=True)
-            compras.append({"precio": precio_real, "monto": btc})
-
+            precio_compra = clp / btc
+            print(f"[DEBUG] {mercado} ultima compra: ${precio_compra:,.0f} ({fecha})", flush=True)
+            return precio_compra, fecha
         except Exception as e:
-            print(f"  error: {e}", flush=True)
+            print(f"[DEBUG] error: {e}", flush=True)
+            continue
 
-    print(f"[DEBUG] {mercado}: {len(compras)} compras Bid encontradas", flush=True)
-    return compras
+    return None, None
     
 def precio_promedio(compras):
     if not compras:
@@ -124,28 +116,37 @@ def construir_mensaje():
         try:
             t    = obtener_ticker(mercado)
             base = mercado.split("-")[0]
-            signo = "+" if t["variacion_24h"] >= 0 else ""
+            signo_24h = "+" if t["variacion_24h"] >= 0 else ""
             lineas += [
                 f"\n{base}",
                 f"  Precio : ${t['precio']:>15,.0f} CLP",
                 f"  Compra : ${t['bid']:>15,.0f}",
                 f"  Venta  : ${t['ask']:>15,.0f}",
-                f"  24h    : {signo}{t['variacion_24h']:.2f}%",
+                f"  24h    : {signo_24h}{t['variacion_24h']:.2f}%",
             ]
 
-            compras = obtener_compras(mercado)
-            prom    = precio_promedio(compras)
+            # ── CAMBIO: usar obtener_ultima_compra en vez de obtener_compras ──
+            precio_compra, fecha_compra = obtener_ultima_compra(mercado)
 
-            if prom:
-                diff_pct = ((t["precio"] - prom) / prom) * 100
-                diff_clp = t["precio"] - prom
-                signo_d  = "+" if diff_pct >= 0 else ""
-                decision = "CONSIDERA VENDER" if diff_pct >= 5 else "Mantener" if diff_pct >= 0 else "En perdida"
+            if precio_compra:
+                diff_pct = (t["precio"] - precio_compra) * 100 / precio_compra
+                diff_clp = t["precio"] - precio_compra
+                signo    = "+" if diff_pct >= 0 else ""
+
+                if diff_pct >= 5:
+                    decision = "VENDER - ganancia significativa"
+                elif diff_pct >= 0:
+                    decision = "Mantener - leve ganancia"
+                elif diff_pct >= -5:
+                    decision = "Mantener - leve perdida"
+                else:
+                    decision = "Mantener - esperar recuperacion"
+
                 lineas += [
-                    f"  ─────────────────",
-                    f"  Vs tus {len(compras)} compras:",
-                    f"  Prom compra : ${prom:>12,.0f}",
-                    f"  Diferencia  : {signo_d}{diff_pct:.2f}% (${diff_clp:>+,.0f})",
+                    f"  -----------------",
+                    f"  Ultima compra ({fecha_compra}):",
+                    f"  Precio compra : ${precio_compra:>12,.0f}",
+                    f"  Diferencia    : {signo}{diff_pct:.2f}% (${diff_clp:>+,.0f})",
                     f"  {decision}",
                 ]
             else:
