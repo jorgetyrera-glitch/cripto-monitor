@@ -7,17 +7,14 @@ import requests
 from datetime import datetime
 from urllib.parse import quote
 
-# ─── CONFIGURACIÓN ───────────────────────────────────────
 TELEFONO        = os.environ["TELEFONO"]
 APIKEY_BOT      = os.environ["APIKEY_BOT"]
 BUDA_API_KEY    = os.environ["BUDA_API_KEY"]
 BUDA_API_SECRET = os.environ["BUDA_API_SECRET"]
 MERCADOS        = ["BTC-CLP", "ETH-CLP", "LTC-CLP", "USDC-CLP"]
 BASE_URL        = "https://www.buda.com/api/v2"
-# ─────────────────────────────────────────────────────────
 
 def generar_firma(secret, nonce, method, path, body=""):
-    # Formato exacto según documentación oficial Buda.com
     msg = " ".join([method.upper(), path, body, nonce])
     return hmac.new(
         secret.encode("utf-8"),
@@ -25,9 +22,9 @@ def generar_firma(secret, nonce, method, path, body=""):
         hashlib.sha384
     ).hexdigest()
 
-def request_privado(method, path, params=None):
-    nonce = str(int(time.time() * 1000))
-    firma = generar_firma(BUDA_API_SECRET, nonce, method, path)
+def request_privado(path, params=None):
+    nonce  = str(int(time.time() * 1000))
+    firma  = generar_firma(BUDA_API_SECRET, nonce, "GET", path)
     headers = {
         "X-SBTC-APIKEY":    BUDA_API_KEY,
         "X-SBTC-NONCE":     nonce,
@@ -35,32 +32,38 @@ def request_privado(method, path, params=None):
         "Content-Type":     "application/json",
     }
     url = BASE_URL + path
-    r = requests.request(method, url, headers=headers, params=params, timeout=10)
-    print(f"[DEBUG] {path} → {r.status_code}")
+    r   = requests.get(url, headers=headers, params=params, timeout=10)
+    print(f"[DEBUG] {path} → status {r.status_code}")
+    print(f"[DEBUG] respuesta: {r.text[:300]}")
     return r.json()
 
 def obtener_ticker(mercado):
     url = f"{BASE_URL}/markets/{mercado}/ticker"
-    r = requests.get(url, timeout=10)
-    t = r.json()["ticker"]
+    r   = requests.get(url, timeout=10)
+    t   = r.json()["ticker"]
     return {
-        "precio":       float(t["last_price"][0]),
-        "bid":          float(t["max_bid"][0]),
-        "ask":          float(t["min_ask"][0]),
+        "precio":        float(t["last_price"][0]),
+        "bid":           float(t["max_bid"][0]),
+        "ask":           float(t["min_ask"][0]),
         "variacion_24h": float(t["price_variation_24h"]) * 100,
     }
 
 def obtener_compras(mercado):
-    """Obtiene últimas órdenes de compra ejecutadas para un mercado"""
+    # Probamos el endpoint sin filtro de tipo para ver qué devuelve
     path = f"/api/v2/markets/{mercado}/orders"
-    data = request_privado("GET", path, params={"state": "traded", "order_type": "bid", "per": 20})
+    data = request_privado(path, params={"per": 50})
     ordenes = data.get("orders", [])
+    print(f"[DEBUG] Total órdenes recibidas {mercado}: {len(ordenes)}")
+
     compras = []
     for o in ordenes:
+        print(f"[DEBUG] orden → tipo: {o.get('order_type')} | estado: {o.get('state')} | precio: {o.get('price')}")
         try:
+            tipo   = o.get("order_type", "")
+            estado = o.get("state", "")
             precio = float(o["price"][0]) if o.get("price") and o["price"][0] else None
             monto  = float(o["traded_amount"][0]) if o.get("traded_amount") and o["traded_amount"][0] else None
-            if precio and monto and precio > 0 and monto > 0:
+            if "bid" in tipo and "traded" in estado and precio and monto and precio > 0:
                 compras.append({"precio": precio, "monto": monto})
         except:
             continue
@@ -69,8 +72,8 @@ def obtener_compras(mercado):
 def precio_promedio_ponderado(compras):
     if not compras:
         return None
-    total_valor  = sum(c["precio"] * c["monto"] for c in compras)
-    total_monto  = sum(c["monto"] for c in compras)
+    total_valor = sum(c["precio"] * c["monto"] for c in compras)
+    total_monto = sum(c["monto"] for c in compras)
     return total_valor / total_monto if total_monto > 0 else None
 
 def construir_mensaje():
@@ -96,7 +99,7 @@ def construir_mensaje():
                 f"  24h    : {emoji_24h} {t['variacion_24h']:+.2f}%",
             ]
 
-            compras = obtener_compras(mercado)
+            compras       = obtener_compras(mercado)
             precio_compra = precio_promedio_ponderado(compras)
 
             if precio_compra:
@@ -128,7 +131,7 @@ def enviar_whatsapp(mensaje):
         f"&apikey={APIKEY_BOT}"
     )
     r = requests.get(url, timeout=15)
-    print("✅ WhatsApp enviado" if r.status_code == 200 else f"❌ Error WhatsApp: {r.status_code}")
+    print("✅ WhatsApp enviado" if r.status_code == 200 else f"❌ Error: {r.status_code}")
 
 def main():
     mensaje = construir_mensaje()
