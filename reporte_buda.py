@@ -15,7 +15,7 @@ MERCADOS        = ["BTC-CLP", "ETH-CLP", "LTC-CLP", "USDC-CLP"]
 BASE_URL        = "https://www.buda.com/api/v2"
 
 def firma_buda(secret, method, path, nonce, body=""):
-    mensaje = " ".join([method, path, body, str(nonce)])
+    mensaje = nonce + method + path + body
     return hmac.new(
         secret.encode(),
         mensaje.encode(),
@@ -24,16 +24,16 @@ def firma_buda(secret, method, path, nonce, body=""):
 
 def obtener_ultima_compra(mercado):
     nonce  = str(int(time.time() * 1000))
-    path   = f"/api/v2/markets/{mercado}/orders"
-    method = "GET"
-    firma  = firma_buda(BUDA_API_SECRET, method, path, nonce)
+path   = f"/markets/{mercado}/orders"
+method = "GET"
+
+firma  = firma_buda(BUDA_API_SECRET, method, path, nonce)
 
     headers = {
-        "X-SBTC-APIKEY":    BUDA_API_KEY,
-        "X-SBTC-NONCE":     nonce,
-        "X-SBTC-SIGNATURE": firma,
-        "Content-Type":     "application/json"
-    }
+    "X-SBTC-APIKEY": BUDA_API_KEY,
+    "X-SBTC-NONCE": nonce,
+    "X-SBTC-SIGNATURE": firma,
+}
 
     url    = f"{BASE_URL}/markets/{mercado}/orders"
     params = {"state": "traded", "order_type": "bid", "per": 5}
