@@ -46,8 +46,14 @@ def obtener_ticker(mercado):
     }
 
 def obtener_compras(mercado):
-    path = f"/api/v2/markets/{mercado.lower()}/orders"
-    data = request_privado(path, params={"per": 50, "page": 1})
+    # Endpoint correcto: /api/v2/orders (sin market en la URL)
+    path = "/api/v2/orders"
+    data = request_privado(path, params={
+        "market_id": mercado,
+        "state":     "traded",
+        "per":       50,
+        "page":      1
+    })
     ordenes = data.get("orders", [])
     print(f"[DEBUG] {mercado}: {len(ordenes)} ordenes", flush=True)
 
@@ -59,10 +65,10 @@ def obtener_compras(mercado):
             precio = float(o["price"][0]) if o.get("price") and o["price"][0] else None
             monto  = float(o["traded_amount"][0]) if o.get("traded_amount") and o["traded_amount"][0] else None
             print(f"  tipo={tipo} estado={estado} precio={precio} monto={monto}", flush=True)
-            if "bid" in tipo and "traded" in estado and precio and monto and monto > 0:
+            if "bid" in tipo and precio and monto and monto > 0:
                 compras.append({"precio": precio, "monto": monto})
         except Exception as e:
-            print(f"  error: {e}", flush=True)
+            print(f"  error orden: {e}", flush=True)
     return compras
 
 def precio_promedio(compras):
