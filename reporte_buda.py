@@ -114,38 +114,34 @@ def construir_mensaje():
 
     for mercado in MERCADOS:
         try:
+            precio_compra, fecha_compra = obtener_ultima_compra(mercado)
+
+            # Si no hay compra ejecutada, omitir esta cripto del reporte
+            if not precio_compra:
+                continue
+
             t    = obtener_ticker(mercado)
             base = mercado.split("-")[0]
             signo_24h = "+" if t["variacion_24h"] >= 0 else ""
+            diff_pct  = (t["precio"] - precio_compra) * 100 / precio_compra
+            signo     = "+" if diff_pct >= 0 else ""
 
-            precio_compra, fecha_compra = obtener_ultima_compra(mercado)
-
-            if precio_compra:
-                diff_pct = (t["precio"] - precio_compra) * 100 / precio_compra
-                signo    = "+" if diff_pct >= 0 else ""
-
-                if diff_pct >= 5:
-                    decision = "VENDER"
-                elif diff_pct >= 0:
-                    decision = "Mantener (ganancia)"
-                elif diff_pct >= -5:
-                    decision = "Mantener (leve perdida)"
-                else:
-                    decision = "Mantener (esperar)"
-
-                lineas += [
-                    f"\n{base}: ${t['precio']:,.0f}",
-                    f"  24h: {signo_24h}{t['variacion_24h']:.2f}%",
-                    f"  Compra {fecha_compra}: ${precio_compra:,.0f}",
-                    f"  Variacion: {signo}{diff_pct:.2f}%",
-                    f"  {decision}",
-                ]
+            if diff_pct >= 5:
+                decision = "VENDER"
+            elif diff_pct >= 0:
+                decision = "Mantener (ganancia)"
+            elif diff_pct >= -5:
+                decision = "Mantener (leve perdida)"
             else:
-                lineas += [
-                    f"\n{base}: ${t['precio']:,.0f}",
-                    f"  24h: {signo_24h}{t['variacion_24h']:.2f}%",
-                    f"  Sin compras ejecutadas",
-                ]
+                decision = "Mantener (esperar)"
+
+            lineas += [
+                f"\n{base}: ${t['precio']:,.0f}",
+                f"  24h: {signo_24h}{t['variacion_24h']:.2f}%",
+                f"  Compra {fecha_compra}: ${precio_compra:,.0f}",
+                f"  Variacion: {signo}{diff_pct:.2f}%",
+                f"  {decision}",
+            ]
 
         except Exception as e:
             lineas.append(f"\nError {mercado}: {e}")
