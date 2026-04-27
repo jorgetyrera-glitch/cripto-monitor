@@ -11,6 +11,8 @@ on:
 jobs:
   enviar-reporte:
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_ALLOW_UNSECURE_NODE_VERSION: true
     steps:
       - name: Descargar código
         uses: actions/checkout@v4
@@ -30,4 +32,3 @@ jobs:
           BUDA_API_KEY:    ${{ secrets.BUDA_API_KEY }}
           BUDA_API_SECRET: ${{ secrets.BUDA_API_SECRET }}
         run: python reporte_buda.py
-
