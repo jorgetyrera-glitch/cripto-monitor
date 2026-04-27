@@ -178,7 +178,16 @@ def main():
 
     print(f"Hora actual Chile: {ahora.strftime('%H:%M')}", flush=True)
 
-    # Enviar si estamos dentro de los 90 minutos siguientes a una hora de envio
+    # Si es ejecución manual, enviar siempre
+    evento = os.environ.get("GITHUB_EVENT_NAME", "")
+    if evento == "workflow_dispatch":
+        print("Ejecucion manual detectada. Enviando reporte...", flush=True)
+        mensaje = construir_mensaje()
+        print(mensaje, flush=True)
+        enviar_whatsapp(mensaje)
+        return
+
+    # Si es automatica, verificar ventana de horario
     debe_enviar = False
     for h in HORAS_ENVIO:
         minutos_desde_hora = (hora - h) * 60 + minuto
