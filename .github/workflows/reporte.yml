@@ -2,7 +2,10 @@ name: Reporte Diario Cripto
 
 on:
   schedule:
-    - cron: '0 * * * *'   # Cada hora en punto
+    - cron: '0 13 * * *'   # 09:00 Chile (UTC-4)
+    - cron: '0 17 * * *'   # 13:00 Chile (UTC-4)
+    - cron: '0 21 * * *'   # 17:00 Chile (UTC-4)
+    - cron: '0 1  * * *'   # 21:00 Chile (UTC-4)
   workflow_dispatch:
 
 jobs:
@@ -10,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Descargar código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Instalar Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -27,3 +30,4 @@ jobs:
           BUDA_API_KEY:    ${{ secrets.BUDA_API_KEY }}
           BUDA_API_SECRET: ${{ secrets.BUDA_API_SECRET }}
         run: python reporte_buda.py
+
