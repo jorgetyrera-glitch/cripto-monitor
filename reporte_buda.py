@@ -170,6 +170,18 @@ def enviar_whatsapp(mensaje):
     print("WhatsApp enviado OK" if r.status_code == 200 else f"Error: {r.status_code}", flush=True)
 
 def main():
+    chile     = pytz.timezone("America/Santiago")
+    ahora     = datetime.now(chile)
+    hora      = ahora.hour
+    HORAS_ENVIO = [9, 13, 17, 21]
+
+    print(f"Hora actual Chile: {ahora.strftime('%H:%M')}", flush=True)
+
+    if hora not in HORAS_ENVIO:
+        print(f"Hora {hora}:00 no corresponde a horario de envio {HORAS_ENVIO}. Saliendo.", flush=True)
+        return
+
+    print(f"Hora {hora}:00 corresponde. Generando reporte...", flush=True)
     mensaje = construir_mensaje()
     print(mensaje, flush=True)
     enviar_whatsapp(mensaje)
