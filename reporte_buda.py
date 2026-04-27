@@ -170,18 +170,27 @@ def enviar_whatsapp(mensaje):
     print("WhatsApp enviado OK" if r.status_code == 200 else f"Error: {r.status_code}", flush=True)
 
 def main():
-    chile     = pytz.timezone("America/Santiago")
-    ahora     = datetime.now(chile)
-    hora      = ahora.hour
+    chile       = pytz.timezone("America/Santiago")
+    ahora       = datetime.now(chile)
+    hora        = ahora.hour
+    minuto      = ahora.minute
     HORAS_ENVIO = [9, 13, 17, 21]
 
     print(f"Hora actual Chile: {ahora.strftime('%H:%M')}", flush=True)
 
-    if hora not in HORAS_ENVIO:
-        print(f"Hora {hora}:00 no corresponde a horario de envio {HORAS_ENVIO}. Saliendo.", flush=True)
+    # Enviar si estamos dentro de los 90 minutos siguientes a una hora de envio
+    debe_enviar = False
+    for h in HORAS_ENVIO:
+        minutos_desde_hora = (hora - h) * 60 + minuto
+        if 0 <= minutos_desde_hora <= 90:
+            debe_enviar = True
+            break
+
+    if not debe_enviar:
+        print(f"Hora {ahora.strftime('%H:%M')} fuera de ventana de envio. Saliendo.", flush=True)
         return
 
-    print(f"Hora {hora}:00 corresponde. Generando reporte...", flush=True)
+    print(f"Dentro de ventana de envio. Generando reporte...", flush=True)
     mensaje = construir_mensaje()
     print(mensaje, flush=True)
     enviar_whatsapp(mensaje)
